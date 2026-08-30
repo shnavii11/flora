@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HarmonicFlora - 3D Voice-Responsive Botanical Sanctuary</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <!-- Canvas Container for 3D WebGL Scene -->
+    <div id="canvas-container"></div>
+
+    <!-- Top HUD Bar -->
+    <header id="hud-header" class="hidden">
+      <div class="hud-brand">
+        <div class="hud-title-group">
+          <h1>HARMONIC FLORA</h1>
+          <p class="hud-subtitle">Voice-Responsive Botanical Sanctuary</p>
+        </div>
+      </div>
+
+      <div class="hud-center-status">
+        <div class="stage-pill" id="stage-badge">
+          <span class="stage-dot"></span>
+          <span id="stage-text">Dormant Seedling</span>
+        </div>
+        <div class="voice-meter-box">
+          <span class="meter-label">Voice Resonance</span>
+          <div class="meter-bar-track">
+            <div id="pitch-fill" class="meter-bar-fill"></div>
+          </div>
+          <span id="pitch-text" class="meter-val">Neutral</span>
+        </div>
+      </div>
+
+      <div class="hud-right-species">
+        <span class="species-badge" id="active-species-badge">Ancient Oak</span>
+      </div>
+    </header>
+
+    <!-- 3D Spatial Navigation Floating Toolbar -->
+    <nav id="spatial-toolbar" class="hidden">
+      <button id="btn-reset-cam" class="tool-btn" title="Reset 3D Camera View">
+        <span class="btn-label">Reset View</span>
+      </button>
+
+      <button id="btn-toggle-orbit" class="tool-btn active" title="Toggle Auto-Orbit">
+        <span class="btn-label">Auto-Rotate</span>
+      </button>
+
+      <button id="btn-open-riddles" class="tool-btn" title="Blooming Riddles">
+        <span class="btn-label">Wisdom Riddles</span>
+        <span id="riddles-badge" class="badge-count hidden">0</span>
+      </button>
+    </nav>
+
+    <!-- Blooming Riddles Modal Drawer -->
+    <div id="riddles-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Blooming Tree Riddles</h2>
+          <button id="riddles-close-btn" class="close-btn">&times;</button>
+        </div>
+        <p class="modal-desc">As your voice nurtures the tree, wisdom blossoms upon its branches.</p>
+        <div id="riddles-list" class="riddles-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Entrance Overlay -->
+    <div id="overlay">
+      <div class="overlay-card">
+        <div class="brand-header">
+          <h2>HarmonicFlora</h2>
+          <p class="tagline">Speak, and the sanctuary responds to your voice.</p>
+        </div>
+
+        <div class="species-selection-container">
+          <p class="section-title">Select Environment & Tree Archetype:</p>
+          <div class="species-grid">
+            <div class="species-opt active" data-species="oak">
+              <div class="opt-info">
+                <h3>Ancient Oak</h3>
+                <p>Lush mossy meadow floor & spreading oak canopy</p>
+              </div>
+            </div>
+            <div class="species-opt" data-species="willow">
+              <div class="opt-info">
+                <h3>Weeping Willow</h3>
+                <p>Wetland riverbank grass & cascading willow vines</p>
+              </div>
+            </div>
+            <div class="species-opt" data-species="sakura">
+              <div class="opt-info">
+                <h3>Cherry Sakura</h3>
+                <p>Zen garden moss & fallen blossom petals</p>
+              </div>
+            </div>
+            <div class="species-opt" data-species="redwood">
+              <div class="opt-info">
+                <h3>Solar Redwood</h3>
+                <p>Alpine pine needle soil & tall mountain forest</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button id="enter-btn"><span>Enter Sanctuary</span></button>
+        <p class="hint">Grant microphone access to interact with the voice-responsive tree</p>
+      </div>
+    </div>
+
+    <!-- Calibration Status -->
+    <div id="calibration-msg">
+      <div class="pulse-loader"></div>
+      <span>Calibrating room acoustics and listening for voice...</span>
+    </div>
+
+    <!-- Bottom Corner Guide -->
+    <div id="legend">
+      <div class="legend-title">Navigation & Voice Response</div>
+      <div><span>Click & Drag / Scroll</span> 360° spatial rotation & zoom</div>
+      <div><span>High Pitch / Warm Voice</span> branch reach & flower bloom</div>
+      <div><span>Low Pitch / Sad Sentence</span> tree droop & leaf shedding</div>
+      <div><span>Wisdom Riddles</span> bloom as tree matures</div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
