@@ -19,7 +19,7 @@ import { CounselorSpeechService } from './audio/counselorSpeech.js'
 import { TreeLifecycle } from './render/lifecycle.js'
 import { initCounselorUI } from './ui/counselorUI.js'
 import { initHUD } from './ui/hudUI.js'
-import { DeepgramSTTService } from './stt/deepgram.js'
+import { WebSpeechSTTService } from './stt/webspeech.js'
 import type { TreeArchetype } from './render/materials.js'
 
 interface ChatMessage {
@@ -70,7 +70,7 @@ const lifecycle = new TreeLifecycle()
 setLifecycleInstance(lifecycle)
 const riddleManager = getRiddleManager()
 const hud = initHUD(riddleManager, lifecycle)
-const stt = new DeepgramSTTService()
+const stt = new WebSpeechSTTService()
 
 let selectedSpecies: TreeArchetype = 'oak'
 const conversationHistory: ChatMessage[] = []
@@ -94,8 +94,11 @@ let fallbackIdx = 0
 const handleUserVoiceInput = (userText: string) => {
   if (lifecycle.getStage() === 'happy_ending') return
 
-  // Voice-triggered farewell detection in Hindi and English
-  if (/thank\s*you|goodbye|bye|i feel better|job finished|धन्यवाद|शुक्रिया|अलविदा|अच्छा लगा|सब ठीक है/i.test(userText)) {
+  // Voice-triggered farewell — ONLY explicit, unambiguous goodbyes. Soft
+  // positive phrases like "achha laga" / "sab theek hai" / "i feel better" must
+  // NOT end the session, otherwise a normal upbeat sentence gets no reply.
+  // The deliberate way to end is the "Complete Session & Farewell" button.
+  if (/\bgoodbye\b|bye[\s-]*bye|अलविदा|विदा|सत्र समाप्त|बातचीत ख़?त्म/i.test(userText)) {
     stt.stop()
     ui.hide()
     lifecycle.triggerHappyEnding()
@@ -235,6 +238,7 @@ initOverlay(async (chosenSpecies: TreeArchetype) => {
 
     stt.start(
       mic.stream,
+      mic.context,
       (transcript: string) => {
         handleUserVoiceInput(transcript)
       },
@@ -252,11 +256,48 @@ initOverlay(async (chosenSpecies: TreeArchetype) => {
     let bargeFrames = 0
     const BARGE_IN_FRAMES = 6 // ~100ms of sustained user speech
 
+    // Adaptive endpoint detector (separate from the visualizer VAD). It tracks
+    // the live background level and treats speech as a RELATIVE jump above it, so
+    // "you stopped" is measured against current room noise instead of a stale,
+    // one-time calibration. This is what makes the reply fire right when you go
+    // quiet, even in a noisy room.
+    let noiseEma = -1 // slow-tracking background RMS
+    let inUtterance = false
+    let silenceStart = 0
+    const ONSET_RATIO = 2.6 // voice must be this much louder than background
+    const OFFSET_RATIO = 1.6 // below this multiple of background = silence
+    const ENDPOINT_SILENCE_MS = 500 // sustained silence before committing
+
     const loop = () => {
       const features = reader.read()
       const pitch = pitchDetector.detect(reader.timeBuf)
 
       const speaking = vad.process(features.rms)
+
+      // --- adaptive endpointing ---
+      const rms = features.rms
+      if (noiseEma < 0) noiseEma = rms
+      // Only let the background estimate rise/fall when we're NOT in loud speech,
+      // so speech itself doesn't pollute the noise floor.
+      if (rms < noiseEma * ONSET_RATIO) {
+        noiseEma = noiseEma * 0.995 + rms * 0.005
+      }
+      const now = performance.now()
+      if (rms > noiseEma * ONSET_RATIO) {
+        inUtterance = true
+        silenceStart = 0
+      } else if (inUtterance && rms < noiseEma * OFFSET_RATIO) {
+        if (silenceStart === 0) {
+          silenceStart = now
+        } else if (now - silenceStart >= ENDPOINT_SILENCE_MS) {
+          inUtterance = false
+          silenceStart = 0
+          stt.commitFromVAD() // no-op if paused (tree speaking) or nothing heard
+        }
+      } else if (inUtterance) {
+        // In the grey zone between onset and offset — not a clear silence yet.
+        silenceStart = 0
+      }
 
       // If the user starts talking while the tree is speaking, stop the tree and
       // listen — the VAD runs on its own mic tap, so it works even though the

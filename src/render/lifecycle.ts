@@ -27,7 +27,15 @@ export class TreeLifecycle {
 
   updateConfidence(score: number) {
     this.confidenceScore = Math.min(Math.max(score, 0.1), 1.0)
-    if (this.confidenceScore >= 0.9 && this.stage !== 'happy_ending') {
+    // Never auto-end from a single upbeat sentence. The session may only wind
+    // down on its own after a genuine conversation (several turns) AND the user
+    // sounding clearly at peace. Otherwise ending is the user's call (button or
+    // an explicit spoken goodbye), and every sentence gets a real reply first.
+    if (
+      this.confidenceScore >= 0.92 &&
+      this.conversationTurns >= 6 &&
+      this.stage !== 'happy_ending'
+    ) {
       this.triggerHappyEnding()
     }
   }

@@ -21,6 +21,8 @@ export class DeepgramSTTService {
   private ws: WebSocket | null = null
   private stream: MediaStream | null = null
   private audioCtx: AudioContext | null = null
+  private providedCtx: AudioContext | null = null
+  private ownsCtx = false
   private source: MediaStreamAudioSourceNode | null = null
   private processor: ScriptProcessorNode | null = null
   private mute: GainNode | null = null
@@ -33,8 +35,19 @@ export class DeepgramSTTService {
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-  async start(stream: MediaStream, onTranscript: TranscriptHandler, onInterim?: TranscriptHandler) {
+  async start(
+    stream: MediaStream,
+    audioContext: AudioContext | null,
+    onTranscript: TranscriptHandler,
+    onInterim?: TranscriptHandler
+  ) {
     this.stream = stream
+    // Reuse the mic's already-running AudioContext. Safari suspends any new
+    // AudioContext created outside a user gesture (i.e. after the awaits in the
+    // startup flow), which silently stops ScriptProcessor from emitting audio —
+    // so a fresh context would send Deepgram nothing. The mic context is already
+    // resumed (it drives the live visualizer), so PCM actually flows.
+    this.providedCtx = audioContext
     this.onTranscript = onTranscript
     this.onInterim = onInterim || null
     this.isListening = true
@@ -45,11 +58,15 @@ export class DeepgramSTTService {
 
   private setupAudioGraph() {
     if (this.audioCtx || !this.stream) return
-    const win = window as WindowWithWebkitAudio
-    const AudioCtxClass = win.AudioContext || win.webkitAudioContext
-    if (!AudioCtxClass) return
 
-    const ctx = new AudioCtxClass()
+    let ctx = this.providedCtx
+    if (!ctx) {
+      const win = window as WindowWithWebkitAudio
+      const AudioCtxClass = win.AudioContext || win.webkitAudioContext
+      if (!AudioCtxClass) return
+      ctx = new AudioCtxClass()
+      this.ownsCtx = true
+    }
     const source = ctx.createMediaStreamSource(this.stream)
     // ScriptProcessor is deprecated but universally supported (incl. Safari) and
     // needs no separate worklet module — ideal for simple PCM capture.
@@ -107,11 +124,14 @@ export class DeepgramSTTService {
 
       const res = await fetch('/api/deepgram-token', { method: 'POST' })
       if (!res.ok) throw new Error(`token ${res.status}`)
-      const { token } = (await res.json()) as { token?: string }
+      const { token, temporary } = (await res.json()) as { token?: string; temporary?: boolean }
       if (!token) throw new Error('no token')
 
-      // Deepgram accepts the token via the WebSocket subprotocol.
-      const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${this.dgQuery()}`, ['token', token])
+      // Auth via WebSocket subprotocol. A short-lived grant token (JWT) must use
+      // the "bearer" scheme; a raw API key uses "token". Sending a JWT as "token"
+      // (or vice versa) returns 401 Invalid credentials and the socket dies.
+      const scheme = temporary ? 'bearer' : 'token'
+      const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${this.dgQuery()}`, [scheme, token])
       this.ws = ws
 
       ws.onopen = () => {
@@ -234,7 +254,9 @@ export class DeepgramSTTService {
         this.mute.disconnect()
       } catch {}
     }
-    if (this.audioCtx) {
+    // Only close the context if we created it. When reusing the mic's shared
+    // context, closing it here would also kill the live visualizer.
+    if (this.audioCtx && this.ownsCtx) {
       this.audioCtx.close().catch(() => {})
     }
     this.processor = null

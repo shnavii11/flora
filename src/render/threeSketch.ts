@@ -47,8 +47,10 @@ export function getRiddleManager(): RiddleManager {
 
 export function resetCamera() {
   if (orbitControls && activeCamera) {
-    activeCamera.position.set(0, 4.2, 11)
-    orbitControls.target.set(0, 3.8, 0)
+    // Zoomed-out framing: pull back and up so the entire tree (tallest species
+    // ~9 units) is visible, centred on its mid-height. Stays within maxDistance.
+    activeCamera.position.set(0, 6.5, 20)
+    orbitControls.target.set(0, 4.2, 0)
     orbitControls.update()
   }
 }
@@ -137,6 +139,9 @@ export function startThreeSketch(container: HTMLElement) {
   scene.add(tree.group)
 
   let lastT = performance.now()
+  // Camera auto-framing state (eased toward targets each frame).
+  let camDist = 12
+  let camTargetY = 3.2
 
   function animate() {
     requestAnimationFrame(animate)
@@ -150,9 +155,24 @@ export function startThreeSketch(container: HTMLElement) {
     lifecycleInstance.feedVoice(controls.energy, controls.pitch, dt)
     const P = plant.params()
 
-    if (autoRotateEnabled && orbitControls) {
-      orbitControls.target.y = 3.8 + Math.sin(now * 0.0006) * 0.18
-    }
+    // Auto-frame: as the tree reveals more of itself, ease the camera back and
+    // up so the WHOLE tree stays in view for the entire session. Only zoom
+    // distance + look-height are managed — the user's orbit angle (and the
+    // auto-rotate spin) are preserved.
+    const growth = lifecycleInstance.getStage() === 'happy_ending'
+      ? 1
+      : lifecycleInstance.getVoiceGrowth()
+    const desiredDist = 12 + growth * 11      // 12 (sprout) -> 23 (full tree)
+    const desiredTargetY = 3.0 + growth * 1.3 // rise as the canopy climbs
+    camDist += (desiredDist - camDist) * 0.02
+    camTargetY += (desiredTargetY - camTargetY) * 0.02
+
+    const gentleBob = autoRotateEnabled ? Math.sin(now * 0.0006) * 0.12 : 0
+    orbitControls.target.set(0, camTargetY + gentleBob, 0)
+    // Re-seat the camera at camDist along its current viewing angle.
+    const camOffset = activeCamera.position.clone().sub(orbitControls.target)
+    camOffset.setLength(camDist)
+    activeCamera.position.copy(orbitControls.target).add(camOffset)
     orbitControls.update()
 
     backdrop.update(tree.getActiveArchetype(), dt)

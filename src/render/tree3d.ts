@@ -423,7 +423,14 @@ export class Tree3D {
     const unlocked = riddleManager.getUnlockedRiddles()
     unlocked.forEach((r, idx) => {
       if (this.branchTipPositions.length > idx) {
-        const tip = this.branchTipPositions[idx * 3 % this.branchTipPositions.length]
+        // Lift the riddle orb up above the canopy and push it outward from the
+        // trunk so it floats clear of the tree instead of colliding with the
+        // foliage as the tree fills in. (Clone — the raw tip is reused for
+        // petal-shedding and must not be mutated.)
+        const tip = this.branchTipPositions[idx * 3 % this.branchTipPositions.length].clone()
+        tip.x *= 1.7
+        tip.z *= 1.7
+        tip.y += 3.5
         riddles3d.addRiddleNode(r, tip)
       }
     })

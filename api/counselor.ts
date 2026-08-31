@@ -38,7 +38,7 @@ Perform a psychological perspective analysis of the user's thoughts.
 CRITICAL MANDATES:
 1. DIRECTLY respond to what the user just said. Briefly reflect their specific situation or feeling (in Hindi, in your own gentle words) so they feel genuinely heard, THEN comfort them. Never reply with generic lines that ignore their actual message.
 2. Respond ONLY IN HINDI (Devanagari script, हिन्दी भाषा). NEVER output any English words, letters, or Roman characters.
-3. Write 2-3 short, soothing sentences. DO NOT use Markdown, asterisks (*), hashtags (#), or special characters.
+3. Keep it very brief: 1-2 short, soothing sentences only (a quick reflection plus the follow-up question). DO NOT use Markdown, asterisks (*), hashtags (#), or special characters.
 4. ALWAYS end with a gentle, caring follow-up question in Hindi that clearly relates to what they just shared.
 5. Output your response as a valid JSON object:
 {
@@ -56,7 +56,7 @@ Where confidenceScore is a float between 0.0 (high stress/vulnerability) and 1.0
     const geminiBody = JSON.stringify({
       contents: [{ parts: [{ text: fullPrompt }] }],
       generationConfig: {
-        maxOutputTokens: 256,
+        maxOutputTokens: 160,
         temperature: 0.35,
         responseMimeType: 'application/json',
       },

@@ -19,26 +19,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'DEEPGRAM_API_KEY not configured' })
   }
 
-  try {
-    const dgRes = await fetch('https://api.deepgram.com/v1/auth/grant', {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ttl_seconds: 30 }),
-    })
-
-    if (dgRes.ok) {
-      const data = (await dgRes.json()) as { access_token?: string; key?: string }
-      return res.status(200).json({ token: data.access_token || data.key, temporary: true })
-    }
-
-    // Fallback: key can't mint temp tokens. Return the raw key.
-    const detail = await dgRes.text()
-    console.warn('[Deepgram] grant failed, returning raw key:', dgRes.status, detail)
-    return res.status(200).json({ token: apiKey, temporary: false })
-  } catch (err) {
-    return res.status(500).json({ error: String(err) })
-  }
+  // Return the raw key so the browser authenticates the WebSocket with the
+  // ['token', key] subprotocol — the exact path that worked in local testing.
+  // (The temporary-token/['bearer', jwt] path did not transcribe on the live
+  // Safari deployment; revert to raw key while we confirm the root cause.)
+  return res.status(200).json({ token: apiKey, temporary: false })
 }

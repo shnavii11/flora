@@ -15,7 +15,11 @@ export async function openMic(): Promise<MicHandle> {
   // not the tree's own voice through the speakers. This is what makes barge-in
   // (interrupting the tree) reliable instead of the tree hearing itself.
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    // autoGainControl OFF: AGC ramps gain up when you go quiet, amplifying room
+    // noise and blinding the endpoint detector to the drop in your voice. (This
+    // stream is only for analysis/VAD — Safari's recognizer captures its own mic,
+    // so turning AGC off here doesn't hurt transcription.)
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
     video: false,
   })
   const context = new AudioContext()

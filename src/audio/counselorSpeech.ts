@@ -35,6 +35,60 @@ export class CounselorSpeechService {
     this.isSpeaking = false
   }
 
+  // Split into sentences on Devanagari and Latin terminators. No lookbehind
+  // (older Safari lacks it) — match runs of text plus their trailing punctuation.
+  private splitSentences(text: string): string[] {
+    const parts = text.match(/[^।॥?!.\n]+[।॥?!.\n]*/g) || [text]
+    return parts.map((s) => s.trim()).filter((s) => s.length > 0)
+  }
+
+  private async synthesize(sentence: string, ctx: AudioContext): Promise<AudioBuffer | null> {
+    try {
+      const res = await fetch('/api/sarvam-tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sentence }),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as { audioBase64?: string }
+      if (!data.audioBase64) return null
+      const binaryStr = atob(data.audioBase64)
+      const bytes = new Uint8Array(binaryStr.length)
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i)
+      }
+      return await ctx.decodeAudioData(bytes.buffer)
+    } catch {
+      return null
+    }
+  }
+
+  private playBuffer(buffer: AudioBuffer, ctx: AudioContext): Promise<void> {
+    return new Promise((resolve) => {
+      const source = ctx.createBufferSource()
+      const gainNode = ctx.createGain()
+      source.buffer = buffer
+
+      const now = ctx.currentTime
+      const dur = buffer.duration
+      // Tiny fades at the edges of each chunk prevent clicks between sentences.
+      gainNode.gain.setValueAtTime(0.01, now)
+      gainNode.gain.exponentialRampToValueAtTime(1.0, now + 0.02)
+      gainNode.gain.setValueAtTime(1.0, now + Math.max(dur - 0.03, 0.03))
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + dur)
+
+      source.connect(gainNode)
+      gainNode.connect(ctx.destination)
+
+      this.currentSource = source
+      source.onended = () => {
+        if (this.currentSource === source) this.currentSource = null
+        resolve()
+      }
+      source.start(0)
+    })
+  }
+
   async speakAdvice(text: string, onStart?: () => void, onEnd?: () => void): Promise<void> {
     this.stopSpeech()
     this.isSpeaking = true
@@ -53,70 +107,46 @@ export class CounselorSpeechService {
 
     const ctx = this.initAudioContext()
 
-    // 1. Try Sarvam High Quality TTS first
-    try {
-      const res = await fetch('/api/sarvam-tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText }),
-      })
+    // 1. Sarvam HQ TTS, sentence-chunked. Fire all syntheses in parallel and
+    //    play them in order — the first sentence speaks as soon as it's ready
+    //    while the rest are still generating, so there's almost no dead air.
+    if (ctx) {
+      const sentences = this.splitSentences(cleanText)
+      const bufferPromises = sentences.map((s) => this.synthesize(s, ctx))
+      let started = false
 
-      if (res.ok) {
-        const data = (await res.json()) as { audioBase64?: string }
-        if (data.audioBase64) {
-          if (ctx) {
-            try {
-              const binaryStr = atob(data.audioBase64)
-              const bytes = new Uint8Array(binaryStr.length)
-              for (let i = 0; i < binaryStr.length; i++) {
-                bytes[i] = binaryStr.charCodeAt(i)
-              }
-
-              const audioBuffer = await ctx.decodeAudioData(bytes.buffer)
-              const source = ctx.createBufferSource()
-              const gainNode = ctx.createGain()
-              source.buffer = audioBuffer
-
-              const now = ctx.currentTime
-              gainNode.gain.setValueAtTime(0.01, now)
-              gainNode.gain.exponentialRampToValueAtTime(1.0, now + 0.03)
-
-              const duration = audioBuffer.duration
-              gainNode.gain.setValueAtTime(1.0, now + duration - 0.05)
-              gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration)
-
-              source.connect(gainNode)
-              gainNode.connect(ctx.destination)
-
-              this.currentSource = source
-              if (onStart) onStart()
-
-              source.onended = () => {
-                this.isSpeaking = false
-                this.currentSource = null
-                if (onEnd) onEnd()
-              }
-
-              source.start(0)
-              return
-            } catch {
-              // Web Audio decode failed -> fallback below
-            }
-          }
+      for (let i = 0; i < bufferPromises.length; i++) {
+        if (!this.isSpeaking) break // stopped / barge-in
+        const buffer = await bufferPromises[i]
+        if (!this.isSpeaking) break
+        if (!buffer) {
+          // First chunk failed and nothing has played -> use Web Speech fallback.
+          if (!started) break
+          continue // a later chunk failed; skip it rather than aborting.
         }
+        if (!started) {
+          started = true
+          if (onStart) onStart()
+        }
+        await this.playBuffer(buffer, ctx)
       }
-    } catch {
-      // Fetch failed -> fallback below
+
+      if (started) {
+        this.isSpeaking = false
+        this.currentSource = null
+        if (onEnd) onEnd()
+        return
+      }
+      // started === false: nothing played (all syntheses failed) -> fall through.
     }
 
-    // 2. Reliable Web Speech Synthesis Fallback (ALWAYS works, no API key required)
+    // 2. Reliable Web Speech Synthesis fallback (no API key required).
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(cleanText)
       utterance.rate = 0.95
       utterance.pitch = 1.0
 
-      // Select Hindi / natural voice if available
       const voices = window.speechSynthesis.getVoices()
       const hiVoice = voices.find((v) => v.lang.startsWith('hi') || v.name.includes('Hindi'))
       if (hiVoice) {
@@ -130,7 +160,6 @@ export class CounselorSpeechService {
         this.isSpeaking = false
         if (onEnd) onEnd()
       }
-
       utterance.onerror = () => {
         this.isSpeaking = false
         if (onEnd) onEnd()
