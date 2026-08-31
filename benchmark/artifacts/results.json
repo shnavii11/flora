@@ -1,0 +1,123 @@
+[
+  {
+    "clip": "dinner.wav",
+    "durationSec": 5.375986394557823,
+    "frames": 463,
+    "baseline": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 8.56,
+      "onsetLatencyMs": [
+        11.609977324263038
+      ],
+      "frameAccuracy": 70.6
+    },
+    "ours": {
+      "falseActivations": 38,
+      "missedOnsets": 0,
+      "flickerPerSec": 0.19,
+      "onsetLatencyMs": [
+        0
+      ],
+      "frameAccuracy": 76
+    }
+  },
+  {
+    "clip": "female.wav",
+    "durationSec": 3.317551020408163,
+    "frames": 285,
+    "baseline": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 4.84,
+      "onsetLatencyMs": [],
+      "frameAccuracy": 73.3
+    },
+    "ours": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 0,
+      "onsetLatencyMs": [],
+      "frameAccuracy": 0
+    }
+  },
+  {
+    "clip": "talking.wav",
+    "durationSec": 5.0416326530612245,
+    "frames": 434,
+    "baseline": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 0.4,
+      "onsetLatencyMs": [],
+      "frameAccuracy": 99.1
+    },
+    "ours": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 0,
+      "onsetLatencyMs": [],
+      "frameAccuracy": 0
+    }
+  },
+  {
+    "clip": "jarvis.wav",
+    "durationSec": 10.535986394557822,
+    "frames": 907,
+    "baseline": {
+      "falseActivations": 0,
+      "missedOnsets": 0,
+      "flickerPerSec": 3.04,
+      "onsetLatencyMs": [
+        11.609977324263038,
+        0
+      ],
+      "frameAccuracy": 89.6
+    },
+    "ours": {
+      "falseActivations": 21,
+      "missedOnsets": 0,
+      "flickerPerSec": 0.09,
+      "onsetLatencyMs": [
+        58.049886621315196,
+        0
+      ],
+      "frameAccuracy": 97.1
+    }
+  },
+  {
+    "clip": "harvard.wav",
+    "durationSec": 18.356190476190477,
+    "frames": 1581,
+    "baseline": {
+      "falseActivations": 10,
+      "missedOnsets": 0,
+      "flickerPerSec": 6.05,
+      "onsetLatencyMs": [
+        243.8095238095238,
+        11.609977324263038,
+        0,
+        23.219954648526077,
+        0,
+        0,
+        0
+      ],
+      "frameAccuracy": 81.2
+    },
+    "ours": {
+      "falseActivations": 404,
+      "missedOnsets": 0,
+      "flickerPerSec": 0,
+      "onsetLatencyMs": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "frameAccuracy": 74.4
+    }
+  }
+]

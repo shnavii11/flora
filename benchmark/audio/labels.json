@@ -1,9 +1,75 @@
 {
-  "_comment": "Ground-truth speech intervals per clip. Edit when you've labeled your clips.",
-  "clip1-pauses.wav":  { "speech": [] },
-  "clip2-hum.wav":     { "speech": [] },
-  "clip3-silence.wav": { "speech": [] },
-  "clip4-breath.wav":  { "speech": [] },
-  "clip5-noisy.wav":   { "speech": [] },
-  "clip6-quiet.wav":   { "speech": [] }
+  "_note": "PROVISIONAL labels from ffmpeg silencedetect (-30dB, 0.25s). Independent of our VAD, but auto-generated \u2014 verify by ear before quoting.",
+  "dinner.wav": {
+    "speech": [
+      [
+        0.0,
+        3.83
+      ],
+      [
+        4.28,
+        5.38
+      ]
+    ]
+  },
+  "female.wav": {
+    "speech": [
+      [
+        0.0,
+        3.32
+      ]
+    ]
+  },
+  "talking.wav": {
+    "speech": [
+      [
+        0.0,
+        5.04
+      ]
+    ]
+  },
+  "jarvis.wav": {
+    "speech": [
+      [
+        0.45,
+        2.7
+      ],
+      [
+        2.95,
+        10.54
+      ]
+    ]
+  },
+  "harvard.wav": {
+    "speech": [
+      [
+        1.07,
+        3.73
+      ],
+      [
+        4.41,
+        6.42
+      ],
+      [
+        7.06,
+        7.74
+      ],
+      [
+        8.03,
+        9.42
+      ],
+      [
+        10.0,
+        11.99
+      ],
+      [
+        12.67,
+        14.38
+      ],
+      [
+        15.15,
+        17.54
+      ]
+    ]
+  }
 }

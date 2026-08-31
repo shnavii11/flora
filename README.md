@@ -2,69 +2,74 @@
 
 a voice counselor that grows a 3d tree while it listens to you.
 
+**current status:** working end to end in safari (and chrome). you speak, the browser transcribes on device, a gemini counselor replies in hindi, and a sarvam voice speaks it back sentence by sentence. the tree grows branch by branch as you talk, and the camera eases back to keep the whole tree in frame.
+
 ## what it does
 
-you speak. a tree listens. as you keep talking, the tree grows, branch by branch, from a bare trunk into a full canopy with leaves and blossoms. a gentle voice replies in hindi, reflecting back what you said and asking a soft follow up question. it is a small, calm space where talking out loud makes something quietly bloom in front of you.
-
-## what it is really about
-
-this is not a productivity tool and it is not trying to fix you. it is about being heard, and about the slow floral love that people who care for plants already understand. you water a plant, you talk to it, you watch it grow, and somewhere in that patience you feel a little less alone. flora takes that feeling and gives it a voice. it is meant for young people who like plants, who talk to them, who find comfort in watching green things come alive. the tree is the listener that never rushes you.
+you speak, a tree listens. as you keep talking it grows, branch by branch, from a bare trunk into a full canopy of leaves and blossoms, and a gentle hindi voice replies, reflecting what you said and asking a soft follow up. it is not a productivity tool and it is not trying to fix you. it is about being heard, the slow floral kind of comfort that people who talk to their plants already know. the tree is the listener that never rushes you.
 
 ## features
 
-- voice in, voice out. you speak, it transcribes, it thinks, it speaks back.
-- a 3d tree that grows as branches, not as size. the more you speak, the more of the tree is revealed, trunk first, then limbs, then twigs, then leaves, then flowers.
-- multilingual listening. it understands hindi, english, and hinglish code switching, so it hears you whether you mix languages or not.
-- a warm hindi counselor voice that mirrors your words instead of giving generic lines.
-- barge in. if you start talking while the tree is speaking, it stops and listens to you.
-- live captions. you can see what it heard you say, and read its reply on screen.
-- four tree species to choose from, each with its own shape and mood.
-- a distant overhead sun, a soft night ground, drifting motes, and a full 360 degree orbit camera so you can look at the tree from any angle.
+- voice in, voice out. you speak, it transcribes, it thinks, it speaks back in hindi.
+- a 3d tree that grows as branches, not as size. the more you speak, the more of it is revealed, trunk first, then limbs, twigs, leaves, and finally flowers.
+- instant turn taking. a voice detector notices the moment you stop and replies right away instead of waiting.
+- a warm hindi counselor voice that mirrors your words instead of giving generic lines, spoken sentence by sentence so it starts almost immediately.
+- barge in. if you start talking while the tree is speaking, it stops and listens.
+- live captions. you see what it heard you say and read its reply on screen.
+- four tree species, each with its own shape and mood.
+- a camera that keeps the whole tree framed as it grows, a soft night ground, drifting motes, glowing wisdom riddle orbs floating above the canopy, and a full 360 degree orbit.
+
+## how listening works
+
+speech to text runs in the browser itself, using the built in recognizer (webkitSpeechRecognition in safari). it needs no key and no server round trip. it listens for hindi first and falls back to english if hindi dictation is not available. the browser recognizer can be slow to declare a sentence final, so we do not wait for it, an energy based voice detector decides when you have stopped and commits the transcript immediately.
+
+earlier this used a deepgram streaming transcriber. it would not authenticate from the deployed page in safari, the audio reached the app but the socket never returned text, so we moved to the built in recognizer. the deepgram files are still in the repo but unused.
 
 ## what we tuned and why
 
-we did not train a custom model. what we tuned is the pipeline, the prompt, and the numbers that make it feel alive and responsive. here is what the important values are and why they are what they are.
+no custom model was trained. what is tuned is the pipeline and the numbers that make it feel alive.
 
-- frame size of 512 samples. at roughly 48 khz this is about 10 milliseconds of audio per frame, and it is a power of two so the fft stays fast. a 1024 point fft gives fine enough frequency bins to track pitch in the 70 to 500 hz range while still reacting almost instantly.
-- noise calibration of 1000 milliseconds. we listen to one second of your silence at the start to measure the room noise floor. one second is long enough to average out random blips but short enough that it does not feel like waiting.
-- voice detection uses two thresholds, 9 db to start and 4 db to stop, above the noise floor. this is hysteresis. you have to be clearly loud to count as speaking, but you only drop out when you go quiet, so your speech is not chopped up on small dips between words.
-- voice hold of 600 milliseconds. after your energy drops we keep counting you as speaking for a little longer, so a natural pause between words does not end your turn early.
-- deepgram endpointing of 300 milliseconds. the transcriber finalises a phrase after 300 milliseconds of silence. fast enough to feel responsive, slow enough to not cut you off mid breath.
-- utterance end of 1000 milliseconds. a full second of silence marks the real end of your turn as a backstop.
-- audio buffer of 4096 samples for streaming, which is about 85 milliseconds at 48 khz. this balances streaming latency against how often we send packets and how much cpu it costs.
-- keep alive ping every 8000 milliseconds. deepgram drops an idle socket after about 10 seconds, so we ping just under that to keep it warm while you pause.
-- token time to live of 30 seconds. the speech token only needs to live long enough to open the socket, so a short life keeps it safer.
-- listening watchdog of 14000 milliseconds. if a reply ever fails to signal that it finished, we auto resume listening after 14 seconds so the app can never get stuck silent.
-- barge in threshold of about 6 frames, roughly 100 milliseconds. you have to speak over the tree for a short run before it stops, so a cough or a bit of echo does not make it cut itself off.
-- reply limit of 256 tokens and temperature 0.35. two to three short hindi sentences fit comfortably, and a low temperature keeps the voice warm but on topic and steady.
-- last 4 turns of memory. enough context to feel continuous without bloating the prompt and slowing the reply.
-- growth speed of 0.42 per second with an energy gate of 0.08. it takes a few seconds of real speech to grow the whole tree, and the gate means quiet room noise does not grow it on its own.
-- text to speech at pace 1.05, slightly quicker than natural, so the voice feels alive but still calm.
+audio framing
+- frame size 512 samples, about 10.7 ms at 48 khz, a power of two so the 1024 point fft stays fast and tracks pitch from 70 to 500 hz.
+- one second of silence at the start measures the room noise floor.
 
-## what problems it solves, honestly
+turn taking
+- the visualizer voice detector uses hysteresis, 9 db above the floor to start and 4 db to stop, with a 600 ms hold so pauses between words do not chop your speech. this drives the tree reaction and barge in.
+- turn ending uses a separate adaptive detector that tracks the live background, treats your voice as a jump of about 2.6x above it, and commits the moment you drop below 1.6x for 500 ms. auto gain control is turned off on this mic so it does not amplify room noise when you go quiet.
+- barge in after about 6 frames, roughly 100 ms of speech over the tree, so a cough does not cut it off.
 
-the goal was a loop that feels like a real conversation with something that is actually paying attention. here is where it landed.
+reply and voice
+- reply limit 160 tokens, temperature 0.35, one to two short hindi sentences, with the last 4 turns kept as memory.
+- the voice is sarvam bulbul v3 at pace 1.05, synthesized sentence by sentence and played in order so the first sentence starts while the rest are still generating. if it fails it falls back to the browser voice.
 
-- can it hear you. yes. the earlier version only understood hindi through the browser and missed anything mixed with english. switching to a streaming multilingual transcriber fixed that, and it now hears hindi, english, and hinglish.
-- is the latency decent. yes, honestly it is good. the transcriber streams while you talk, the reply model is a fast lite model, and the voice is a low latency service, so the gap between you finishing and the tree replying is short and comfortable.
-- does the interrupt work. mostly yes. if you talk over the tree it will stop and listen, and echo cancellation on the mic keeps it from hearing itself. but this is the rough edge. sometimes it cuts off a little early, sometimes a loud room or leftover echo trips it, and once in a while the resume after an interrupt misfires or throws. the interrupt is the next thing we are refining. the latency and the listening are solid, the interrupt is good but not perfect yet.
+growth
+- growth speed 0.42 per second with an energy gate of 0.08, so a few seconds of real speech grows the tree while quiet room noise does not.
+- the tree is a fixed skeleton revealed progressively, it does not scale, and the camera eases from a close 12 units out to about 23 as more of it appears.
+
+## honest status
+
+- can it hear you. yes, in the browser, hindi first with english fallback. it is not full hinglish code switching, that was the old streaming transcriber.
+- is the latency decent. yes. the detector commits the instant you stop, replies are short, and the voice streams sentence by sentence, so the gap is small.
+- does the interrupt work. mostly. talking over the tree stops it, and echo cancellation keeps it from hearing itself, but a loud room or leftover echo can still trip it now and then.
+
+## benchmark
+
+`benchmark/` measures the frame level visualizer voice detector (`src/audio/vad.ts`) against a naive fixed threshold baseline on five real recorded clips (42.6 s, hand verified labels), and writes `benchmark/artifacts/report.md`. full write up in `benchmark/RESULTS.md`.
+
+honest headline: ours is about 40x smoother (flicker 0.1 vs 4.6 toggles/sec) on every clip and never misses a speech onset. when a clip starts with a quiet moment it also beats the baseline on accuracy (dinner 76 vs 71, jarvis 97 vs 90), because it calibrates to the room floor. it loses on two clips that are loud from the first frame (female, talking, both 0 percent) because it needs a quiet second to calibrate the floor, which the live app guarantees with its calibration phase but a raw clip does not. on harvard it is perfectly smooth with zero missed onsets but scores a little below baseline because the 600 ms hold fills the short gaps between sentences. note this benchmarks the detector that drives the tree reaction and barge in, not the newer turn ending detector in `main.ts`, which is not yet covered.
 
 ## running it
 
-copy the example env, add your keys, then run the backend and the frontend.
-
-- google key for the counselor replies
-- sarvam key for the hindi voice
-- deepgram key for the streaming transcriber
+you need two keys, google for the counselor replies and sarvam for the hindi voice. speech to text runs in the browser and needs no key. a deepgram key in the env is legacy and no longer used.
 
 ```
 cp .env.example .env
 npm install
-npm run api
-npm run dev
+npm run api    # local api from scripts/dev-server.js
+npm run dev    # vite frontend
 ```
 
-works best in chrome or edge, but also runs in safari since the mic capture uses raw audio instead of a container format.
+runs in safari (primary) and chrome, both have the built in speech recognizer. deploys to vercel, where the api routes run as serverless functions.
 
 ## file structure
 
@@ -75,42 +80,45 @@ vercel.json             deploy config for the hosted api functions
 package.json            scripts, dev runs vite, api runs the local server
 
 api/
-  server.js             local dev backend, serves all three api routes from .env
   counselor.ts          hosted function, the counselor reply from gemini
   sarvam-tts.ts         hosted function, hindi text to speech
-  deepgram-token.ts     hosted function, mints a short lived speech token
+  deepgram-token.ts     hosted function, legacy speech token, no longer used
+
+scripts/
+  dev-server.js         local dev backend, serves the api routes from .env
 
 src/
-  main.ts               wires everything together, the main voice loop and barge in
-  config.ts             every tunable number lives here
+  main.ts               wires everything, the voice loop, turn endpointer, barge in, captions
+  config.ts             visualizer vad and growth numbers (endpointer numbers live in main.ts)
   styles.css            styling
 
   audio/
-    mic.ts              opens the mic with echo cancellation
+    mic.ts              opens the mic, echo cancellation on, auto gain off
     calibrate.ts        measures the room noise floor
-    vad.ts              voice activity detection with hysteresis
+    vad.ts              visualizer voice detection with hysteresis
     features.ts         loudness and spectral features
     pitch.ts            pitch tracking
     smoothing.ts        smoothing helpers
-    counselorSpeech.ts  plays the tree's voice, sarvam first then a browser fallback
-    stt.ts              the old browser only transcriber, kept for reference
+    counselorSpeech.ts  plays the voice, sarvam sentence by sentence, browser fallback
+    stt.ts              legacy browser only transcriber, unused
 
   stt/
-    deepgram.ts         the streaming multilingual transcriber that is actually used
+    webspeech.ts        the active transcriber, browser speech recognition
+    deepgram.ts         legacy streaming transcriber, unused
     commands.ts         keyword to visual event mapping
 
   mapping/
     controls.ts         turns audio features into plant controls
 
   render/
-    threeSketch.ts      scene, camera, sun, the render loop
-    tree3d.ts           the tree itself and the branch by branch growth
+    threeSketch.ts      scene, camera and auto framing, the render loop
+    tree3d.ts           the tree and the branch by branch growth
     lifecycle.ts        stage, confidence, and the voice growth accumulator
     materials.ts        per species materials and configs
     backdrop3d.ts       ground and sky
     grass3d.ts          grass
     particles3d.ts      motes and falling petals
-    riddles3d.ts        riddle blossoms
+    riddles3d.ts        the floating riddle orbs
     plant.ts, lsystem.ts, sketch.ts, palette.ts, particles.ts   earlier 2d prototype pieces
 
   ui/

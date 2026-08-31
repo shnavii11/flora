@@ -1,19 +1,23 @@
 # Benchmark Audio Clips
 
-Record 6–8 short clips (10–20 s each) as `.wav` and place them here.
+These are the **real recorded clips** the benchmark runs on (mono, 44.1 kHz, 16-bit WAV):
 
-Scenarios to cover (see PLAN.md §7 for detail):
-1. `clip1-pauses.wav`   — natural speech with pauses
-2. `clip2-hum.wav`      — humming a sustained note
-3. `clip3-silence.wav`  — silence in a slightly noisy room
-4. `clip4-breath.wav`   — breathing near the mic
-5. `clip5-noisy.wav`    — speaking with background noise
-6. `clip6-quiet.wav`    — soft/quiet speech
+| File | What it is |
+|------|------------|
+| `dinner.wav`  | people chatting at dinner |
+| `jarvis.wav`  | assistant-style voice |
+| `harvard.wav` | Harvard sentences with pauses |
+| `female.wav`  | continuous female speech |
+| `talking.wav` | continuous talking |
 
-One-line recording command (Mac):
-```
-rec -r 44100 -c 1 clip1-pauses.wav trim 0 15
-```
-(requires `sox`: `brew install sox`)
+`labels.json` holds the ground-truth speech intervals per clip, e.g.
+`"dinner.wav": { "speech": [[0.0, 3.83], [4.28, 5.38]] }`.
 
-Labels go in `labels.json` — see PLAN.md §7 for the format.
+## Adding a new clip
+1. Drop any audio file in this folder.
+2. Convert to the right format:
+   `ffmpeg -y -i in.mp3 -ac 1 -ar 44100 -sample_fmt s16 -map_metadata -1 -bitexact clip.wav`
+3. Add its name to `CLIPS` in `benchmark/make_labels.py`, then:
+   `python3 benchmark/make_labels.py` (drafts labels) →
+   `python3 benchmark/plot_labels.py` (draw a picture to verify by ear) →
+   fix any labels in `labels.json` → `npx tsx benchmark/run.ts`.

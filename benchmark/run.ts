@@ -2,7 +2,8 @@
 // Usage: npx ts-node benchmark/run.ts
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { VAD } from '../src/audio/vad.js'
 import { BaselineVAD } from './vad-baseline.js'
 import { FRAME_SIZE } from '../src/config.js'
@@ -117,6 +118,7 @@ function median(arr: number[]): number {
 }
 
 async function main() {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
   const labelsPath = join(__dirname, 'audio', 'labels.json')
   const labels: Labels = JSON.parse(readFileSync(labelsPath, 'utf8'))
   const artifactsDir = join(__dirname, 'artifacts')

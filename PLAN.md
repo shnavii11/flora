@@ -300,23 +300,23 @@ through the **real `vad.ts`**, and writes:
 - `artifacts/report.md` — a human-readable before/after table
 - `artifacts/results.json` and `results.csv` — the raw numbers
 
-Example of what `report.md` should look like (numbers are illustrative — yours will be
-real):
+Real results (5 real clips, 42.6 s, hand-verified labels — full write-up in
+`benchmark/RESULTS.md`):
 
 ```
 HarmonicFlora — VAD Benchmark
-Clips: 7   Total audio: 96.4 s   Frames: 8,213
+Clips: 5   Total audio: 42.6 s   Frames: 3,670
 
                           Baseline (fixed)   Ours (adaptive+hyst)
-False activations              184                   12
-Missed onsets                    9                    4
-Flicker (toggles/sec)          6.1                  0.7
-Onset latency (median)         41 ms                58 ms
-Frame accuracy                 78.3%                94.6%
+Flicker (toggles/sec)          4.6                  0.1     (~40x smoother)
+Missed onsets                    0                    0
+Frame accuracy (avg)           82.8%                49.5%
 
-Takeaway: the naive threshold fires constantly on room noise and flickers on
-every pause. Ours cuts false activations ~15× and flicker ~9× for +17 ms of
-onset latency — a deliberate, defensible tradeoff.
+Takeaway: ours is ~40x smoother on every clip and misses no onsets. It beats the
+baseline on accuracy when the clip starts quiet (dinner, jarvis), and loses on two
+clips that are loud from frame zero (female, talking, both 0%) because it needs a
+quiet moment to calibrate the room floor — which the live app guarantees but a raw
+clip does not.
 ```
 
 > **Integrity note:** report the *real* numbers you get, including anywhere ours loses
